@@ -1,0 +1,211 @@
+{
+  "info": {
+    "_postman_id": "a98e2170-1f92-4f01-9c84-nexachain2026",
+    "name": "NexaChain AI — MERN Stack Assessment API Collection",
+    "description": "Complete Postman collection with sample requests and response payloads for the NexaChain AI Investment and Referral Platform.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "POST /api/auth/register (Root User)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Jane Developer\",\n  \"email\": \"jane.developer@nexachain.test\",\n  \"mobileNumber\": \"+919876543210\",\n  \"password\": \"SecurePass@123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "POST /api/auth/register (With Referral Sponsor)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Bob Downline\",\n  \"email\": \"bob.downline@nexachain.test\",\n  \"mobileNumber\": \"+919876543211\",\n  \"password\": \"SecurePass@123\",\n  \"referralCode\": \"NXALICE1\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "POST /api/auth/login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"jane.developer@nexachain.test\",\n  \"password\": \"SecurePass@123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "GET /api/auth/me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Investment Management",
+      "item": [
+        {
+          "name": "GET /api/investments/plans",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/investments/plans", "host": ["{{baseUrl}}"], "path": ["investments", "plans"] }
+          }
+        },
+        {
+          "name": "POST /api/investments (Create Investment)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": \"growth\",\n  \"amount\": 2000\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/investments", "host": ["{{baseUrl}}"], "path": ["investments"] }
+          }
+        },
+        {
+          "name": "GET /api/investments (List My Investments)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/investments?page=1&limit=10&status=Active", "host": ["{{baseUrl}}"], "path": ["investments"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Dashboard Analytics",
+      "item": [
+        {
+          "name": "GET /api/dashboard/summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/dashboard/summary", "host": ["{{baseUrl}}"], "path": ["dashboard", "summary"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Referral System",
+      "item": [
+        {
+          "name": "GET /api/referrals/direct",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/referrals/direct", "host": ["{{baseUrl}}"], "path": ["referrals", "direct"] }
+          }
+        },
+        {
+          "name": "GET /api/referrals/tree",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/referrals/tree?maxDepth=3", "host": ["{{baseUrl}}"], "path": ["referrals", "tree"] }
+          }
+        },
+        {
+          "name": "GET /api/referrals/income",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/referrals/income?page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["referrals", "income"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. ROI & Wallet Ledger",
+      "item": [
+        {
+          "name": "GET /api/roi/history",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/roi/history?page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["roi", "history"] }
+          }
+        },
+        {
+          "name": "GET /api/wallet/transactions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/wallet/transactions?page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["wallet", "transactions"] }
+          }
+        },
+        {
+          "name": "POST /api/wallet/deposit (Simulate Top-Up)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000,\n  \"note\": \"Testing wallet balance credit\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/wallet/deposit", "host": ["{{baseUrl}}"], "path": ["wallet", "deposit"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Admin & System Operations",
+      "item": [
+        {
+          "name": "POST /api/admin/roi/process (Manual Trigger)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-admin-secret", "value": "nexachain_admin_secret_cron_override_key" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"processingDate\": \"2026-10-31\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/admin/roi/process", "host": ["{{baseUrl}}"], "path": ["admin", "roi", "process"] }
+          }
+        },
+        {
+          "name": "GET /api/health",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        }
+      ]
+    }
+  ]
+}
