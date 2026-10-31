@@ -11,6 +11,9 @@ export default function CronTestPage() {
 
   const todayStr = new Date().toISOString().split('T')[0];
   const [processingDate, setProcessingDate] = useState(todayStr);
+  const [adminSecret, setAdminSecret] = useState(
+    () => localStorage.getItem('nexachain_admin_secret') || ''
+  );
   const [loading, setLoading] = useState(false);
   const [executionResult, setExecutionResult] = useState(null);
 
@@ -19,7 +22,15 @@ export default function CronTestPage() {
     setExecutionResult(null);
 
     try {
-      const res = await client.post('/admin/roi/process', { processingDate });
+      if (adminSecret) {
+        localStorage.setItem('nexachain_admin_secret', adminSecret.trim());
+      }
+      const headers = adminSecret ? { 'x-admin-secret': adminSecret.trim() } : {};
+      const res = await client.post(
+        '/admin/roi/process',
+        { processingDate, adminSecret: adminSecret.trim() },
+        { headers }
+      );
       if (res.success) {
         setExecutionResult(res.data);
         await refreshUser();
@@ -74,9 +85,9 @@ export default function CronTestPage() {
           </div>
         </div>
 
-        {/* Date Selector & Trigger Button */}
-        <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
-          <div className="w-full sm:w-auto flex-1">
+        {/* Date Selector, Admin Secret & Trigger Button */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 items-end">
+          <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
               Select Processing Date:
             </label>
@@ -88,10 +99,24 @@ export default function CronTestPage() {
             />
           </div>
 
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
+              <span>Admin Secret Key:</span>
+              <span className="text-[10px] text-blue-400 normal-case">x-admin-secret</span>
+            </label>
+            <input
+              type="password"
+              value={adminSecret}
+              onChange={(e) => setAdminSecret(e.target.value)}
+              placeholder="Render ADMIN_SECRET_KEY"
+              className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 px-4 text-sm text-white font-mono placeholder-slate-600 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+
           <button
             onClick={handleRunBatch}
             disabled={loading || !processingDate}
-            className="w-full sm:w-auto sm:self-end py-2.5 px-6 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs shadow-neon-blue transition-all flex items-center justify-center gap-2"
+            className="w-full py-2.5 px-6 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs shadow-neon-blue transition-all flex items-center justify-center gap-2 h-[42px]"
           >
             {loading ? (
               <>

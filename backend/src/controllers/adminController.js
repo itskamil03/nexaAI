@@ -8,7 +8,7 @@ const config = require('../config/env');
  */
 const triggerDailyRoi = async (req, res, next) => {
   try {
-    const adminSecret = req.headers['x-admin-secret'];
+    const adminSecret = req.headers['x-admin-secret'] || req.body.adminSecret;
 
     // Enforce administrative secret key verification
     if (adminSecret !== config.adminSecretKey && config.nodeEnv !== 'test') {
