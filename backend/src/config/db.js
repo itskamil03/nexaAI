@@ -1,5 +1,13 @@
+const dns = require('dns');
 const mongoose = require('mongoose');
 const config = require('./env');
+
+// Ensure Windows resolves mongodb+srv SRV records reliably
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (e) {
+  // Use system default if restricted
+}
 
 const connectDB = async () => {
   try {

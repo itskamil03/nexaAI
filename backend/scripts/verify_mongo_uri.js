@@ -3,9 +3,17 @@
  * Validates connection without exposing passwords or sensitive credentials.
  */
 
+const dns = require('dns');
 const dotenv = require('dotenv');
 const path = require('path');
 const mongoose = require('mongoose');
+
+// Ensure Windows resolves mongodb+srv SRV records reliably
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (e) {
+  // Use system default if restricted
+}
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
