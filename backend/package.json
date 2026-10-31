@@ -9,6 +9,7 @@
     "test": "jest --runInBand --detectOpenHandles --forceExit",
     "test:staging": "node scripts/run_staging_smoke_tests.js",
     "verify:transactions": "node scripts/verify_transactions.js",
+    "verify:mongo": "node scripts/verify_mongo_uri.js",
     "verify:e2e": "node scripts/verify_e2e.js"
   },
   "keywords": [
