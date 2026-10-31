@@ -248,4 +248,62 @@ describe('Mandatory Financial Integrity & Business Logic Scenarios', () => {
     expect(res.status).toBe(404);
     expect(res.body.success).toBe(false);
   });
+
+  // SCENARIO H: Concurrent Investment Race Condition (FI-01 Regression Test)
+  test('Scenario H: Concurrent investment requests — strictly prevents wallet overdraft', async () => {
+    // 1. Give User A exactly $1,000.00 balance
+    await User.findByIdAndUpdate(userA._id || userA.id, { walletBalance: 1000.0 });
+
+    // 2. Fire two parallel concurrent investment requests for $1,000.00 each
+    const results = await Promise.allSettled([
+      request(app)
+        .post('/api/investments')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ planId: 'starter', amount: 1000 }),
+      request(app)
+        .post('/api/investments')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ planId: 'starter', amount: 1000 }),
+    ]);
+
+    const statuses = results.map(r => r.value?.status);
+    expect(statuses).toContain(201); // Exactly one succeeds
+    expect(statuses).toContain(400); // Exactly one fails with insufficient balance
+
+    // 3. User balance must be exactly $0.00 (NEVER -$1,000.00)
+    const userAfter = await User.findById(userA._id || userA.id);
+    expect(userAfter.walletBalance).toBe(0.0);
+
+    // 4. Exactly one investment was created
+    const invCount = await Investment.countDocuments({ userId: userA._id || userA.id });
+    expect(invCount).toBe(1);
+  });
+
+  // SCENARIO I: Stale Lock Recovery in Scheduler (SCHED-01 Regression Test)
+  test('Scenario I: Stale Lock Recovery — reclaims orphaned lock after worker crash', async () => {
+    const { JobLock } = require('../../src/models');
+    const { executeScheduledRoiBatch } = require('../../src/jobs/roiScheduler');
+
+    const testDate = '2026-10-31';
+    const lockId = `daily_roi_${testDate}`;
+
+    // Simulate a crashed worker: Lock held in 'PROCESSING' for 45 minutes
+    const fortyFiveMinutesAgo = new Date(Date.now() - 45 * 60 * 1000);
+    const staleLock = new JobLock({
+      _id: lockId,
+      status: 'PROCESSING',
+      workerId: 'crashed-worker-host:9999',
+      acquiredAt: fortyFiveMinutesAgo,
+    });
+    await staleLock.save();
+
+    // Execute batch: scheduler must detect stale lock, reclaim it, and finish
+    const summary = await executeScheduledRoiBatch(testDate);
+    expect(summary.skipped).toBeUndefined();
+
+    // Verify lock is now COMPLETED by current process
+    const finalLock = await JobLock.findById(lockId);
+    expect(finalLock.status).toBe('COMPLETED');
+  });
 });
+

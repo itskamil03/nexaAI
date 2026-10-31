@@ -4,19 +4,35 @@
  */
 
 /**
- * Normalizes a Date or date string to YYYY-MM-DD format.
+ * Normalizes a Date or date string to YYYY-MM-DD format respecting the target timezone.
  * @param {Date|string|number} [dateInput]
+ * @param {string} [timeZone='UTC']
  * @returns {string}
  */
-const normalizeDate = (dateInput) => {
+const normalizeDate = (dateInput, timeZone = 'UTC') => {
+  if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput.trim())) {
+    return dateInput.trim();
+  }
+
   const d = dateInput ? new Date(dateInput) : new Date();
   if (isNaN(d.getTime())) {
     throw new Error('Invalid date input provided to normalizeDate');
   }
-  const year = d.getUTCFullYear();
-  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timeZone || 'UTC',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return formatter.format(d);
+  } catch (e) {
+    const year = d.getUTCFullYear();
+    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
 };
 
 /**

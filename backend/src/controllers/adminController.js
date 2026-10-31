@@ -9,8 +9,10 @@ const config = require('../config/env');
 const triggerDailyRoi = async (req, res, next) => {
   try {
     const adminSecret = req.headers['x-admin-secret'];
-    if (adminSecret !== config.adminSecretKey && config.nodeEnv === 'production') {
-      return sendError(res, 'Unauthorized administrative access.', 403);
+
+    // Enforce administrative secret key verification
+    if (adminSecret !== config.adminSecretKey && config.nodeEnv !== 'test') {
+      return sendError(res, 'Unauthorized administrative access. Valid x-admin-secret header required.', 403);
     }
 
     const { processingDate } = req.body;

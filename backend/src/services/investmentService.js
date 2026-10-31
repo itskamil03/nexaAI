@@ -6,6 +6,7 @@ const { distributeReferralIncome } = require('./referralService');
 
 /**
  * Creates and activates an investment funded from user's internal wallet balance.
+ * Implements strict atomic conditional debit and compensating rollback protection.
  *
  * @param {string|ObjectId} userId
  * @param {string} planId
@@ -15,34 +16,46 @@ const { distributeReferralIncome } = require('./referralService');
 const createInvestment = async (userId, planId, amount) => {
   const numAmount = roundTo2Decimals(Number(amount));
 
-  // 1. Validate plan
+  // 1. Validate plan configuration
   const plan = getPlanById(planId);
   if (!plan) {
     throw { statusCode: 400, message: `Invalid investment plan: "${planId}".` };
   }
 
-  // 2. Validate amount against plan limits
+  // 2. Validate amount limits
   if (numAmount < plan.minAmount || numAmount > plan.maxAmount) {
     throw {
       statusCode: 422,
-      message: `Amount $${numAmount} is outside allowed range ($${plan.minAmount} - $${plan.maxAmount}) for plan "${plan.name}".`,
+      message: `Amount $${numAmount.toFixed(2)} is outside allowed range ($${plan.minAmount} - $${plan.maxAmount}) for plan "${plan.name}".`,
     };
   }
 
-  // 3. Check user and wallet balance
-  const user = await User.findById(userId);
-  if (!user) {
-    throw { statusCode: 404, message: 'User not found.' };
-  }
+  // 3. ATOMIC CONDITIONAL DEBIT:
+  // Guarantees that concurrent requests cannot overdraft the balance below zero
+  const updatedUser = await User.findOneAndUpdate(
+    {
+      _id: userId,
+      walletBalance: { $gte: numAmount },
+      accountStatus: 'Active',
+    },
+    {
+      $inc: { walletBalance: -numAmount },
+    },
+    { new: true }
+  );
 
-  if (user.accountStatus !== 'Active') {
-    throw { statusCode: 403, message: 'Your account is not active for new investments.' };
-  }
-
-  if (user.walletBalance < numAmount) {
+  // If null, either insufficient balance, account inactive, or user not found
+  if (!updatedUser) {
+    const existingUser = await User.findById(userId);
+    if (!existingUser) {
+      throw { statusCode: 404, message: 'User not found.' };
+    }
+    if (existingUser.accountStatus !== 'Active') {
+      throw { statusCode: 403, message: 'Your account is not active for new investments.' };
+    }
     throw {
       statusCode: 400,
-      message: `Insufficient wallet balance ($${user.walletBalance.toFixed(2)}). Required: $${numAmount.toFixed(2)}. Please fund your wallet.`,
+      message: `Insufficient wallet balance ($${existingUser.walletBalance.toFixed(2)}). Required: $${numAmount.toFixed(2)}. Please fund your wallet.`,
     };
   }
 
@@ -50,53 +63,60 @@ const createInvestment = async (userId, planId, amount) => {
   const startDate = new Date();
   const endDate = addDays(startDate, plan.durationDays);
 
-  // 5. Create investment document
-  const investment = new Investment({
-    userId: user._id,
-    amount: numAmount,
-    planDetails: {
-      planId: plan.planId,
-      planName: plan.name,
-      durationDays: plan.durationDays,
-      minAmount: plan.minAmount,
-      maxAmount: plan.maxAmount,
-    },
-    startDate,
-    endDate,
-    dailyRoiPercentage: plan.dailyRoiPercentage,
-    status: 'Active',
-  });
+  let investment;
+  try {
+    // 5. Create investment record
+    investment = new Investment({
+      userId: updatedUser._id,
+      amount: numAmount,
+      planDetails: {
+        planId: plan.planId,
+        planName: plan.name,
+        durationDays: plan.durationDays,
+        minAmount: plan.minAmount,
+        maxAmount: plan.maxAmount,
+      },
+      startDate,
+      endDate,
+      dailyRoiPercentage: plan.dailyRoiPercentage,
+      status: 'Active',
+    });
+    await investment.save();
 
-  await investment.save();
+    // 6. Record debit in WalletTransaction audit ledger
+    const idempotencyKey = `inv_debit:${investment._id}`;
+    const debitTx = new WalletTransaction({
+      userId: updatedUser._id,
+      transactionType: 'INVESTMENT_DEBIT',
+      direction: 'DEBIT',
+      amount: numAmount,
+      sourceRecordRef: 'Investment',
+      sourceRecordId: investment._id,
+      idempotencyKey,
+      status: 'SUCCESS',
+      description: `Principal investment in ${plan.name} (${plan.durationDays} days @ ${plan.dailyRoiPercentage}% daily ROI)`,
+      balanceAfter: updatedUser.walletBalance,
+      timestamp: new Date(),
+    });
+    await debitTx.save();
+  } catch (err) {
+    // COMPENSATING ROLLBACK: Restore debited funds if investment or ledger creation failed
+    console.error(`[InvestmentService] Rolling back debited funds for user ${userId} due to write failure:`, err.message);
+    try {
+      await User.findByIdAndUpdate(userId, { $inc: { walletBalance: numAmount } });
+      if (investment && investment._id) {
+        await Investment.findByIdAndDelete(investment._id);
+      }
+    } catch (rollbackErr) {
+      console.error('[InvestmentService] CRITICAL: Failed to execute rollback compensation:', rollbackErr);
+    }
+    throw err;
+  }
 
-  // 6. Debit user wallet balance atomically
-  const updatedUser = await User.findByIdAndUpdate(
-    user._id,
-    { $inc: { walletBalance: -numAmount } },
-    { new: true }
-  );
-
-  // 7. Record debit in WalletTransaction audit ledger
-  const idempotencyKey = `inv_debit:${investment._id}`;
-  const debitTx = new WalletTransaction({
-    userId: user._id,
-    transactionType: 'INVESTMENT_DEBIT',
-    direction: 'DEBIT',
-    amount: numAmount,
-    sourceRecordRef: 'Investment',
-    sourceRecordId: investment._id,
-    idempotencyKey,
-    status: 'SUCCESS',
-    description: `Principal investment in ${plan.name} (${plan.durationDays} days @ ${plan.dailyRoiPercentage}% daily ROI)`,
-    balanceAfter: updatedUser.walletBalance,
-    timestamp: new Date(),
-  });
-  await debitTx.save();
-
-  // 8. Distribute multi-tier referral rewards to uplines
+  // 7. Distribute multi-tier referral rewards to uplines
   let referralCommissions = [];
   try {
-    referralCommissions = await distributeReferralIncome(user._id, investment._id, numAmount);
+    referralCommissions = await distributeReferralIncome(updatedUser._id, investment._id, numAmount);
   } catch (refErr) {
     console.error(`[InvestmentService] Error distributing referral income for inv ${investment._id}:`, refErr);
   }

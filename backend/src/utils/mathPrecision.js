@@ -1,6 +1,6 @@
 /**
  * High-precision monetary rounding and calculation utilities.
- * Mitigates IEEE 754 double precision floating-point drift.
+ * Mitigates IEEE 754 double precision floating-point drift and invalid values.
  */
 
 /**
@@ -9,7 +9,7 @@
  * @returns {number}
  */
 const roundTo2Decimals = (value) => {
-  if (typeof value !== 'number' || isNaN(value)) {
+  if (typeof value !== 'number' || isNaN(value) || !isFinite(value)) {
     return 0;
   }
   return Math.round((value + Number.EPSILON) * 100) / 100;
@@ -21,6 +21,9 @@ const roundTo2Decimals = (value) => {
  * @returns {number}
  */
 const toCents = (amount) => {
+  if (typeof amount !== 'number' || isNaN(amount) || !isFinite(amount)) {
+    return 0;
+  }
   return Math.round((amount + Number.EPSILON) * 100);
 };
 
@@ -30,6 +33,9 @@ const toCents = (amount) => {
  * @returns {number}
  */
 const fromCents = (cents) => {
+  if (typeof cents !== 'number' || isNaN(cents) || !isFinite(cents)) {
+    return 0;
+  }
   return roundTo2Decimals(cents / 100);
 };
 

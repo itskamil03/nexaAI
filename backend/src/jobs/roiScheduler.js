@@ -5,27 +5,34 @@ const { JobLock } = require('../models');
 const { processAllActiveInvestments } = require('../services/roiService');
 const { normalizeDate } = require('../utils/dateUtils');
 
+// 30 minute stale lock expiration window
+const STALE_LOCK_TIMEOUT_MS = 30 * 60 * 1000;
+
 /**
  * Executes the scheduled ROI batch with distributed database locking.
- * Safe against concurrent cluster workers and duplicate executions.
+ * Safe against concurrent cluster workers, stale locks, and crashes.
  *
  * @param {string} [targetDate] - Normalized calendar date string (YYYY-MM-DD)
  * @returns {Promise<object>}
  */
 const executeScheduledRoiBatch = async (targetDate = null) => {
-  const normalizedDate = normalizeDate(targetDate);
+  const normalizedDate = normalizeDate(targetDate, config.cronTimezone);
   const lockId = `daily_roi_${normalizedDate}`;
   const workerId = `${os.hostname()}:${process.pid}`;
+  const staleThreshold = new Date(Date.now() - STALE_LOCK_TIMEOUT_MS);
 
   console.log(`[Scheduler] Attempting to acquire lock for: ${lockId} (Worker: ${workerId})`);
 
-  // 1. Attempt to acquire distributed lock
+  // 1. Attempt to claim existing FAILED or STALE lock
   let lock;
   try {
     lock = await JobLock.findOneAndUpdate(
       {
         _id: lockId,
-        status: { $in: ['FAILED'] }, // Allow retry if previously failed
+        $or: [
+          { status: 'FAILED' },
+          { status: 'PROCESSING', acquiredAt: { $lt: staleThreshold } },
+        ],
       },
       {
         $set: {
@@ -38,29 +45,33 @@ const executeScheduledRoiBatch = async (targetDate = null) => {
     );
 
     if (!lock) {
-      // Try initial creation if document does not exist
-      lock = new JobLock({
-        _id: lockId,
-        status: 'PROCESSING',
-        workerId,
-        acquiredAt: new Date(),
-      });
-      await lock.save();
+      // 2. Try initial creation if document does not exist yet
+      try {
+        lock = new JobLock({
+          _id: lockId,
+          status: 'PROCESSING',
+          workerId,
+          acquiredAt: new Date(),
+        });
+        await lock.save();
+      } catch (insertErr) {
+        if (insertErr.code === 11000) {
+          console.log(`[Scheduler] Lock already held or batch completed for ${lockId}. Skipping execution.`);
+          return { skipped: true, reason: 'LOCK_ALREADY_ACQUIRED', lockId };
+        }
+        throw insertErr;
+      }
     }
   } catch (err) {
-    if (err.code === 11000) {
-      console.log(`[Scheduler] Lock already held or batch completed for ${lockId}. Skipping execution.`);
-      return { skipped: true, reason: 'LOCK_ALREADY_ACQUIRED', lockId };
-    }
     console.error(`[Scheduler] Error acquiring job lock: ${err.message}`);
     throw err;
   }
 
-  // 2. Execute ROI service batch
+  // 3. Execute ROI service batch
   try {
     const summary = await processAllActiveInvestments(normalizedDate);
 
-    // 3. Mark lock as COMPLETED
+    // 4. Mark lock as COMPLETED
     await JobLock.findByIdAndUpdate(lockId, {
       status: 'COMPLETED',
       completedAt: new Date(),
