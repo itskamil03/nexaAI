@@ -1,5 +1,5 @@
 const app = require('./app');
-const config = require('./config/env');
+const { config, validateConfig } = require('./config/env');
 const { connectDB, disconnectDB } = require('./config/db');
 const { startRoiScheduler } = require('./jobs/roiScheduler');
 
@@ -8,6 +8,11 @@ let cronTask;
 
 const startServer = async () => {
   try {
+    // 0. Validate Environment Configuration
+    if (config.nodeEnv !== 'test') {
+      validateConfig();
+    }
+
     // 1. Connect to MongoDB
     await connectDB();
 

@@ -23,27 +23,45 @@ app.use(helmet());
 // CORS Configuration
 const configuredOrigins = (config.clientUrl || '')
   .split(',')
-  .map(url => url.trim())
+  .map(url => url.trim().replace(/\/+$/, ''))
   .filter(Boolean);
 
-const allowedOrigins = [
+const allowedOrigins = new Set([
   ...configuredOrigins,
+  'https://nexa-ai-nine-ecru.vercel.app',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:5174',
-];
+  'http://127.0.0.1:5174',
+  'http://localhost:3000',
+  'http://localhost:4173',
+]);
 
-app.use(cors({
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  const normalized = origin.replace(/\/+$/, '');
+  if (allowedOrigins.has(normalized)) return true;
+  // Match any Vercel production or preview deployment for this project
+  if (/^https:\/\/nexa-ai[a-z0-9-]*\.vercel\.app$/.test(normalized)) {
+    return true;
+  }
+  return false;
+};
+
+const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || config.nodeEnv === 'development') {
+    if (isOriginAllowed(origin) || config.nodeEnv === 'development' || config.nodeEnv === 'test') {
       return callback(null, true);
     }
-    return callback(new Error('Cross-Origin Request Blocked by CORS policy'));
+    return callback(new Error(`Cross-Origin Request Blocked by CORS policy: Origin ${origin} is not allowed`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-secret'],
-}));
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // Request Logging
 if (config.nodeEnv !== 'test') {
@@ -54,8 +72,8 @@ if (config.nodeEnv !== 'test') {
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-// Health Check & Readiness Endpoint
-app.get('/api/health', (req, res) => {
+// Health Check & Readiness Handler
+const healthCheckHandler = (req, res) => {
   const dbState = mongoose.connection.readyState;
   const dbStatusMap = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
   const topologyType = mongoose.connection.client?.topology?.description?.type || 'unknown';
@@ -71,7 +89,10 @@ app.get('/api/health', (req, res) => {
     uptime: Math.floor(process.uptime()),
     environment: config.nodeEnv,
   });
-});
+};
+
+app.get('/api/health', healthCheckHandler);
+app.get('/health', healthCheckHandler);
 
 // Root API Information
 app.get('/api', (req, res) => {

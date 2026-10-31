@@ -32,4 +32,4 @@ services:
       - key: CRON_TIMEZONE
         value: Asia/Kolkata
       - key: CLIENT_URL
-        value: "http://localhost:5173,http://localhost:5174"
+        sync: false # Prompts user to input their frontend domain (e.g. https://nexa-ai-nine-ecru.vercel.app)
