@@ -35,6 +35,10 @@ async function runTransactionVerification() {
     if (isTxSupported) {
       console.log('\n[Stage 1] Executing Live Replica Set Transaction Smoke Tests...');
 
+      // Ensure target collections and indexes exist prior to running transactions (MongoDB DDL requirement)
+      await User.init();
+      await WalletTransaction.init();
+
       // Test 1: Rollback test
       console.log('  Testing Transaction Abort / Automatic Rollback...');
       const session1 = await mongoose.startSession();
