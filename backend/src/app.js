@@ -21,10 +21,16 @@ const app = express();
 app.use(helmet());
 
 // CORS Configuration
+const configuredOrigins = (config.clientUrl || '')
+  .split(',')
+  .map(url => url.trim())
+  .filter(Boolean);
+
 const allowedOrigins = [
-  config.clientUrl,
+  ...configuredOrigins,
   'http://localhost:5173',
   'http://127.0.0.1:5173',
+  'http://localhost:5174',
 ];
 
 app.use(cors({

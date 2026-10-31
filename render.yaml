@@ -1,0 +1,35 @@
+# NexaChain AI — Render Blueprint Specification (Staging Backend API)
+# Official documentation: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: nexachain-backend-staging
+    env: node
+    plan: free
+    region: singapore # Closest region to GCP Mumbai (asia-south1)
+    rootDir: backend
+    buildCommand: npm install --production=false
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: false
+
+    # Environment variables (Real secrets MUST be set in Render Dashboard)
+    envVars:
+      - key: NODE_ENV
+        value: staging
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false # Prompts user to input secret in dashboard (DO NOT HARDCODE)
+      - key: JWT_SECRET
+        generateValue: true # Render generates a secure random 256-bit secret
+      - key: JWT_EXPIRES_IN
+        value: 24h
+      - key: ADMIN_SECRET_KEY
+        generateValue: true # Render generates a secure random secret for admin triggers
+      - key: CRON_SCHEDULE
+        value: "0 0 * * *"
+      - key: CRON_TIMEZONE
+        value: Asia/Kolkata
+      - key: CLIENT_URL
+        value: "http://localhost:5173,http://localhost:5174"
