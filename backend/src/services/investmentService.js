@@ -3,10 +3,12 @@ const { getPlanById } = require('../config/plans');
 const { addDays } = require('../utils/dateUtils');
 const { roundTo2Decimals } = require('../utils/mathPrecision');
 const { distributeReferralIncome } = require('./referralService');
+const { runInTransaction } = require('../utils/transaction');
 
 /**
  * Creates and activates an investment funded from user's internal wallet balance.
- * Implements strict atomic conditional debit and compensating rollback protection.
+ * Implements strict atomic conditional debit and multi-document ACID transactions on replica sets,
+ * with compensating rollback protection on standalone deployments.
  *
  * @param {string|ObjectId} userId
  * @param {string} planId
@@ -30,6 +32,8 @@ const createInvestment = async (userId, planId, amount) => {
     };
   }
 
+  return runInTransaction(async (session) => {
+
   // 3. ATOMIC CONDITIONAL DEBIT:
   // Guarantees that concurrent requests cannot overdraft the balance below zero
   const updatedUser = await User.findOneAndUpdate(
@@ -41,12 +45,12 @@ const createInvestment = async (userId, planId, amount) => {
     {
       $inc: { walletBalance: -numAmount },
     },
-    { new: true }
+    { new: true, session }
   );
 
   // If null, either insufficient balance, account inactive, or user not found
   if (!updatedUser) {
-    const existingUser = await User.findById(userId);
+    const existingUser = await User.findById(userId).session(session);
     if (!existingUser) {
       throw { statusCode: 404, message: 'User not found.' };
     }
@@ -81,7 +85,7 @@ const createInvestment = async (userId, planId, amount) => {
       dailyRoiPercentage: plan.dailyRoiPercentage,
       status: 'Active',
     });
-    await investment.save();
+    await investment.save({ session });
 
     // 6. Record debit in WalletTransaction audit ledger
     const idempotencyKey = `inv_debit:${investment._id}`;
@@ -98,9 +102,9 @@ const createInvestment = async (userId, planId, amount) => {
       balanceAfter: updatedUser.walletBalance,
       timestamp: new Date(),
     });
-    await debitTx.save();
+    await debitTx.save({ session });
   } catch (err) {
-    // COMPENSATING ROLLBACK: Restore debited funds if investment or ledger creation failed
+    // COMPENSATING ROLLBACK: Restore debited funds if investment or ledger creation failed on standalone
     console.error(`[InvestmentService] Rolling back debited funds for user ${userId} due to write failure:`, err.message);
     try {
       await User.findByIdAndUpdate(userId, { $inc: { walletBalance: numAmount } });
@@ -116,7 +120,7 @@ const createInvestment = async (userId, planId, amount) => {
   // 7. Distribute multi-tier referral rewards to uplines
   let referralCommissions = [];
   try {
-    referralCommissions = await distributeReferralIncome(updatedUser._id, investment._id, numAmount);
+    referralCommissions = await distributeReferralIncome(updatedUser._id, investment._id, numAmount, session);
   } catch (refErr) {
     console.error(`[InvestmentService] Error distributing referral income for inv ${investment._id}:`, refErr);
   }
@@ -126,6 +130,7 @@ const createInvestment = async (userId, planId, amount) => {
     walletBalance: updatedUser.walletBalance,
     referralCommissions,
   };
+  });
 };
 
 /**
