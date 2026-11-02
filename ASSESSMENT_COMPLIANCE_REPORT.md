@@ -180,3 +180,4 @@
   * Backend: **LIVE** on Render (`https://nexachain-api.onrender.com`).
   * Frontend: **LIVE** on Vercel (`https://nexa-ai-guuc.vercel.app`).
   * Database: **LIVE** on MongoDB Atlas Replica Set (GCP Mumbai `asia-south1`).
+

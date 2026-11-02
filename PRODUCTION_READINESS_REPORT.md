@@ -133,3 +133,4 @@ To transition from **Conditioned Staging** to **Unconstrained Live Production**:
    * Confirm official yield rates, plan tenures, and principal return rules with legal and business leadership.
 3. **Dedicated Persistent Worker Instance:**
    * Ensure the backend runs on an upgraded persistent Render instance tier (avoiding free-tier sleep cycles after 15 minutes of inactivity).
+

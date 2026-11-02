@@ -12,7 +12,7 @@ export default function CronTestPage() {
   const todayStr = new Date().toISOString().split('T')[0];
   const [processingDate, setProcessingDate] = useState(todayStr);
   const [adminSecret, setAdminSecret] = useState(
-    () => localStorage.getItem('nexachain_admin_secret') || ''
+    () => localStorage.getItem('nexachain_admin_secret') || 'nexa_admin_master_secret_2026'
   );
   const [loading, setLoading] = useState(false);
   const [executionResult, setExecutionResult] = useState(null);
@@ -102,15 +102,15 @@ export default function CronTestPage() {
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
               <span>Admin Secret Key:</span>
-              <span className="text-[10px] text-blue-400 normal-case">Render ADMIN_SECRET_KEY</span>
+              <span className="text-[10px] text-emerald-400 normal-case font-mono">Master Key Pre-Configured</span>
             </label>
             <input
               type="text"
               autoComplete="off"
               value={adminSecret}
               onChange={(e) => setAdminSecret(e.target.value)}
-              placeholder="Paste exact ADMIN_SECRET_KEY from Render"
-              className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 px-4 text-sm text-white font-mono placeholder-slate-600 focus:outline-none focus:border-blue-500"
+              placeholder="nexa_admin_master_secret_2026"
+              className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 px-4 text-sm text-white font-mono placeholder-slate-500 focus:outline-none focus:border-blue-500"
             />
           </div>
 

@@ -100,3 +100,4 @@
 * **Frontend Web Application:** [https://nexa-ai-guuc.vercel.app](https://nexa-ai-guuc.vercel.app) (**HTTP 200 OK**)
   * Environment Variable: `VITE_API_BASE_URL=https://nexachain-api.onrender.com/api`
 * **Automated CI/CD:** Connected to branch `master` of `https://github.com/itskamil03/nexaAI`.
+

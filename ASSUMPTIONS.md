@@ -103,3 +103,4 @@ Non-finite inputs (`NaN`, `Infinity`, `null`) are strictly sanitized to `0.00`.
    - Client-side routing is handled by HTML5 pushState rewrites (`frontend/vercel.json`).
 3. **Database (MongoDB Atlas):**
    - Hosted on a 3-node replica set cluster (`Cluster0` in `asia-south1`), providing multi-document ACID transactions.
+
