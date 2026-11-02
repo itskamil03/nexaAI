@@ -102,13 +102,14 @@ export default function CronTestPage() {
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
               <span>Admin Secret Key:</span>
-              <span className="text-[10px] text-blue-400 normal-case">x-admin-secret</span>
+              <span className="text-[10px] text-blue-400 normal-case">Render ADMIN_SECRET_KEY</span>
             </label>
             <input
-              type="password"
+              type="text"
+              autoComplete="off"
               value={adminSecret}
               onChange={(e) => setAdminSecret(e.target.value)}
-              placeholder="Render ADMIN_SECRET_KEY"
+              placeholder="Paste exact ADMIN_SECRET_KEY from Render"
               className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 px-4 text-sm text-white font-mono placeholder-slate-600 focus:outline-none focus:border-blue-500"
             />
           </div>
