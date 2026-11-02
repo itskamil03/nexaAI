@@ -94,11 +94,35 @@ const healthCheckHandler = (req, res) => {
 app.get('/api/health', healthCheckHandler);
 app.get('/health', healthCheckHandler);
 
+// Root Gateway Information
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    service: 'NexaChain AI Backend Gateway',
+    version: '1.0.0',
+    status: 'online',
+    portal: config.clientUrl || 'https://nexa-ai-guuc.vercel.app',
+    healthCheck: '/api/health',
+    endpoints: {
+      auth: '/api/auth',
+      investments: '/api/investments',
+      dashboard: '/api/dashboard',
+      referrals: '/api/referrals',
+      roi: '/api/roi',
+      wallet: '/api/wallet',
+      admin: '/api/admin',
+    },
+    message: 'Welcome to NexaChain AI Institutional Investment & Referral API Gateway.',
+  });
+});
+
 // Root API Information
 app.get('/api', (req, res) => {
   res.status(200).json({
+    success: true,
     service: 'NexaChain AI API',
     version: '1.0.0',
+    healthCheck: '/api/health',
     endpoints: [
       '/api/auth',
       '/api/investments',
